@@ -509,6 +509,12 @@ void execute_command(char *args[]) {
             write(STDERR_FILENO, error_message, strlen(error_message));
             return;
         }
+        // Check if there are multiple arguments after '>'
+        if (args[redirect_index + 2] != NULL) {
+            char error_message[100] = "An error has occurred\n";
+            write(STDERR_FILENO, error_message, strlen(error_message));
+            return;
+        }
         char *output_file = args[redirect_index + 1];
         int fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if (fd < 0) {
@@ -604,7 +610,7 @@ void tokenize_input(char *input, char **args, int *arg_count) {
     while (token != NULL) {
         if (strcmp(token, ">") == 0) {
             args[(*arg_count)++] = token;
-        } else {
+        } else if (strcmp(token, "&") != 0) {
             char *redir = strchr(token, '>');
             if (redir) {
                 *redir = 0;
@@ -640,7 +646,8 @@ int main(int argc, char *argv[]) {
     if (argc == 2) {
     FILE *batch_file = fopen(argv[1], "r");
     if (batch_file == NULL) {
-        perror("Failed to open batch file");
+        char error_message[30] = "An error has occurred\n";
+        write(STDERR_FILENO, error_message, strlen(error_message));
         exit(EXIT_FAILURE);
     }
 
@@ -700,9 +707,12 @@ int main(int argc, char *argv[]) {
             }
         }
     } else {
-        fprintf(stderr, "Usage: %s [batch_file]\n", argv[0]);
+        fprintf(stderr, "An error has occurred\n");
         exit(EXIT_FAILURE);
     }
 
     return 0;
 }
+
+
+//CODE FOR PARALLEL COMMAND
