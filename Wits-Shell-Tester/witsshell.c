@@ -1,568 +1,708 @@
+
+
+//CODE WITHOUT REDIRECT
+
 // #include <stdio.h>
 // #include <stdlib.h>
-// #include <stdbool.h>
-// #include <unistd.h>
-// #include <sys/wait.h>
 // #include <string.h>
-// #include <assert.h>
-// #include <fcntl.h>
+// #include <unistd.h>
+// #include <sys/types.h>
+// #include <sys/wait.h>
 
-// bool is_bash_mode() {
-//     // Check if the SHELL environment variable contains "bash."
-//     char *shell = getenv("SHELL");
-//     if (shell && strstr(shell, "bash") != NULL) {
-//         return true;
-//     }
-//     return false;
-// }
+// #define MAX_INPUT_SIZE 1024
+// #define MAX_PATH_COUNT 50
+// #define MAX_PATH_SIZE 150
 
-// bool is_interactive() {
-//     // Check if stdin is connected to a terminal.
-//     return isatty(STDIN_FILENO);
-// }
+// // Use a 2D character array to store the paths
+// char paths[MAX_PATH_COUNT][MAX_PATH_SIZE];
 
-// int main(int MainArgc, char *MainArgv[]){
-// 	if (is_bash_mode() && is_interactive()) {
-//         printf("Your shell is in bash mode and running interactively.\n");
+
+// int path_count = 0; // Keep track of the number of paths
+
+// void add_path(const char *new_path) {
+//     if (path_count < MAX_PATH_COUNT) {
+//         strcpy(paths[path_count++], new_path);
 //     } else {
-//         printf("Your shell is not in bash mode and/or not running interactively.\n");
+//         fprintf(stderr, "Max path count reached\n");
 //     }
+// }
 
-// 	char *input = NULL;
-//     size_t input_size = 0;
+// void execute_command(char *args[]) {
+//     // Rest of your execute_command code here, using the paths array
+//     // You can iterate over paths and try to execute the command using each path
+//     for (int i = 0; i < path_count; i++) {
+//         char full_path[MAX_PATH_SIZE];
+//         snprintf(full_path, sizeof(full_path), "%s%s", paths[i], args[0]);
 
-//     while (1) {
-//         printf("witsshell> ");  // Print a shell prompt
-//         ssize_t input_length = getline(&input, &input_size, stdin);
-
-//         if (input_length == -1) {
-//             //perror("getline");
-//             exit(EXIT_FAILURE);
+//         // Check if the executable exists
+//         if (access(full_path, X_OK) == 0) {
+//             // Execute the command
+//             pid_t pid = fork();
+//             if (pid == 0) {
+//                 execv(full_path, args);
+//                 perror("execv failed");
+//                 exit(EXIT_FAILURE);
+//             } else if (pid < 0) {
+//                 perror("fork failed");
+//                 exit(EXIT_FAILURE);
+//             } else {
+//                 wait(NULL); // Wait for child process to complete
+//                 return; // Exit the function after executing the command
+//             }
 //         }
+//     }
+//     // If no executable was found in any path, print an error
+//     char error_message[30] = "An error has occurred\n";
+//     write(STDERR_FILENO, error_message, strlen(error_message));
+// }
 
-//         // Remove the newline character at the end of the input
-//         input[input_length - 1] = '\0';
+// void path_command(char *args[]) {
+//     // Check if there are arguments
+//     // if (args[1] == NULL) {
+//     //     fprintf(stderr, "An error occurred\n");
+//     //     path_count = 0; // Clear all paths
+//     // } else {
+//         // Clear the existing paths
+//         path_count = 0;
 
-//         //To exit shell
-//         if (strcmp(input, "exit") == 0) {
-//             break;  // Exit the loop
+//         // Append each argument to the paths array
+//         for (int i = 1; args[i] != NULL; i++) {
+//             add_path(args[i]);
 //         }
+//     //}
+// }
 
-// 		// Check if the user typed "ls" to show the contents of the current directory
-// 		if (strcmp(input, "ls") == 0) {
-// 			pid_t pid = fork();
-// 			if (pid == -1) {
-// 				perror("fork");
-// 				exit(EXIT_FAILURE);
-// 			}
 
-// 			if (pid == 0) {
-// 				// Child process
-// 				execlp("ls", "ls", NULL);
-// 				perror("execlp");
-// 				exit(EXIT_FAILURE);
-// 			}
-
-// 			// Parent process
-// 			int status;
-// 			if (wait(&status) == -1) {
-// 				perror("wait");
-// 				exit(EXIT_FAILURE);
-// 			}
-
-// 			continue;  // Go to the next iteration of the loop
-// 		}
-// 		// Check if the user typed "ls" to show the contents of the upper directory
-// 		if (strcmp(input, "ls..") == 0) {
-// 			pid_t pid = fork();
-// 			if (pid == -1) {
-// 				perror("fork");
-// 				exit(EXIT_FAILURE);
-// 			}
-
-// 			if (pid == 0) {
-// 				// Child process
-// 				execlp("ls", "ls", "..", NULL);
-// 				perror("execlp");
-// 				exit(EXIT_FAILURE);
-// 			}
-
-// 			// Parent process
-// 			int status;
-// 			if (wait(&status) == -1) {
-// 				perror("wait");
-// 				exit(EXIT_FAILURE);
-// 			}
-
-// 			continue;  // Go to the next iteration of the loop
-// 		}
-
-//         // Here, you can process the user's input as needed
-//         // if((input[0] == 'c' && input[1] == 'd' && input[2] == ' ') || (input[0] == 'c' && input[1] == 'd' && input[2] == '\0')){
-// 		// 	char *path = input + 3;
-// 		// 	if(chdir(path) == -1){
-// 		// 		perror("chdir");
-// 		// 	}
-// 		// 	continue;
-// 		// }
+// void cd_command(char *args[]) {
+//     if (args[1] == NULL) {
+//         char error_message[30] = "An error has occurred\n";
+//         write(STDERR_FILENO, error_message, strlen(error_message));
+//     } else {
+//         if (chdir(args[1]) != 0) {
+//             char error_message[30] = "An error has occurred\n";
+//             write(STDERR_FILENO, error_message, strlen(error_message));
+//         }
 //     }
-
-//     free(input);  // Free the memory allocated by getline
-
-// 	return(0);
 // }
 
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
-// #include <stdbool.h>
-// #include <unistd.h>
-// #include <sys/wait.h>
-// #include <dirent.h>
-// #define MAX_INPUT_LENGTH 1024
-
-// bool is_bash_mode() {
-//     // Check if the SHELL environment variable contains "bash."
-//     char *shell = getenv("SHELL");
-//     if (shell && strstr(shell, "bash") != NULL) {
-//         return true;
-//     }
-//     return false;
-// }
-
-// bool is_interactive() {
-//     // Check if stdin is connected to a terminal.
-//     return isatty(STDIN_FILENO);
-// }
-
-// //ls command
-// // void execute_ls() {
-// //     pid_t pid = fork();
-// //     if (pid == -1) {
-// //         perror("fork");
-// //         exit(EXIT_FAILURE);
-// //     }
-
-// //     if (pid == 0) {
-// //         // Child process
-// //         execlp("ls", "ls", NULL);
-// //         perror("ls");
-// //         exit(EXIT_FAILURE);
-// //     }
-
-// //     // Parent process
-// //     int status;
-// //     if (wait(&status) == -1) {
-// //         perror("wait");
-// //         exit(EXIT_FAILURE);
-// //     }
-// // }
-// void ls(const char *directory) {
-//     struct dirent *entry;
-//     DIR *dp;
-
-//     // Open the specified directory
-//     dp = opendir(directory);
-
-//     if (dp == NULL) {
-//         perror("opendir");
-//         exit(1);
-//     }
-
-//     // Read and print directory entries
-//     while ((entry = readdir(dp))) {
-//         // Skip hidden files and directories
-//         if (entry->d_name[0] == '.')
-//             continue;
-
-//         printf("%s\n", entry->d_name);
-//     }
-
-//     closedir(dp);
-// }
-
-// //ls.. command
-// void execute_ls_upper_files(){
-// 	pid_t pid = fork();
-// 	if (pid == -1) {
-// 		perror("fork");
-// 		exit(EXIT_FAILURE);
-// 	}
-
-// 	if (pid == 0) {
-// 		// Child process
-// 		execlp("ls", "ls ", "..", NULL);
-// 		perror("ls");
-// 		exit(EXIT_FAILURE);
-// 	}
-
-// 	// Parent process
-// 	int status;
-// 	if (wait(&status) == -1) {
-// 		perror("wait");
-// 		exit(EXIT_FAILURE);
-// 	}
-// }
-
-// //echo command
-// void execute_echo(char *message) {
-//     // Implement the 'echo' command logic here.
-//     printf("%s\n", message);
-// }
-
-// //cd command
-// void execute_cd(char *path) {
-//     if (chdir(path) == -1) {
+// void exit_command(char *args[]) {
+//     if (args[1] == NULL) {
+//         exit(EXIT_SUCCESS);
+//     } else {
 //         char error_message[30] = "An error has occurred\n";
 //         write(STDERR_FILENO, error_message, strlen(error_message));
 //     }
 // }
 
 // int main(int argc, char *argv[]) {
-//     if (argc > 1) {
-//         // Batch mode: Read commands from the specified file.
-//         char *input_file_name = argv[1];
-//         FILE *input_file = fopen(input_file_name, "r");
-//         if (input_file == NULL) {
-//             perror("Error opening input file");
-//             return 1;
+// 	// Add /bin/ to the paths array
+//     strcpy(paths[0], "/bin/");
+//     path_count++;
+
+//     // Add the home directory to the paths array
+//     char *home_directory = getcwd(NULL, 0);
+//     if (home_directory != NULL) {
+//         strcat(home_directory, "/");
+//         add_path(home_directory);
+//     } else {
+//         fprintf(stderr, "Failed to get home directory\n");
+//     }
+//     if (argc == 2) {
+//         // Batch mode: Read commands from the specified file
+//         FILE *batch_file = fopen(argv[1], "r");
+//         if (batch_file == NULL) {
+//             perror("Failed to open batch file");
+//             exit(EXIT_FAILURE);
 //         }
 
-//         char *input = NULL;
-//         size_t input_length = 0;
-//         ssize_t read;
+//         char input[MAX_INPUT_SIZE];
+//         char *args[MAX_INPUT_SIZE];
 
-//         while ((read = getline(&input, &input_length, input_file)) != -1) {
-//             // Remove the trailing newline character.
-//             if (input[read - 1] == '\n') {
-//                 input[read - 1] = '\0';
+//         while (fgets(input, sizeof(input), batch_file) != NULL) {
+//             // Remove newline character
+//             input[strcspn(input, "\n")] = '\0';
+
+//             // Parse the input into arguments
+//             int arg_count = 0;
+//             char *token = strtok(input, " ");
+//             while (token != NULL) {
+//                 args[arg_count++] = token;
+//                 token = strtok(NULL, " ");
 //             }
-// 			//ls commanc
-// 			// if (strcmp(input, "ls") == 0)
-// 			// {
-// 			// 	execute_ls();
-// 			// 	continue; // Go to the next iteration of the loop
-// 			// }
-// 			//exit command
-// 			if (input_length == -1) {
-// 				//perror("getline");
-// 				exit(EXIT_FAILURE);
-// 			}
-// 			//ls .. command
-// 			if (strcmp(input, "ls ..") == 0)
-// 			{
-// 				execute_ls_upper_files();
-// 				continue;
-// 			}
-// 			// Check if the user typed "echo" to print a message.
-// 			if (strncmp(input, "echo ", 5) == 0) {
-//                 char *message = input + 5;
-//                 execute_echo(message);
-//                 continue;
+//             args[arg_count] = NULL;
+
+//             if (arg_count > 0) {
+//                 if (strcmp(args[0], "exit") == 0) {
+//                     exit_command(args);
+//                 } else if (strcmp(args[0], "cd") == 0) {
+//                     cd_command(args);
+//                 } else if (strcmp(args[0], "path") == 0) {
+//                     path_command(args);
+//                 } else {
+//                     execute_command(args);
+//                 }
 //             }
-
-// 			//cd command
-// 			if ((input[0] == 'c' && input[1] == 'd' && input[2] == ' ') || (input[0] == 'c' && input[1] == 'd' && input[2] == '\0')) {
-// 				char *path = input + 3;
-// 				execute_cd(path);
-// 				continue;
-// 			}
-
-// 			// Clear the input buffer for the next iteration.
-//             free(input);
-//             input = NULL;
-//             input_length = 0;
 //         }
 
-//         // Clean up and exit.
-//         free(input);
-//         fclose(input_file);
-
-// 	// Interactive mode: Read commands from stdin.
-//     } else if (is_interactive()) {
-// 		char *input = NULL;
-//         size_t input_size = 0;
+//         fclose(batch_file);
+//     } else if (argc == 1) {
+//         // Interactive mode
+//         char input[MAX_INPUT_SIZE];
+//         char *args[MAX_INPUT_SIZE];
+        
 //         while (1) {
-// 			printf("witsshell> ");  // Print a shell prompt
-// 			ssize_t input_length = getline(&input, &input_size, stdin);
+//             printf("witsshell> ");
+//             fflush(stdout);
 
-// 			if (input_length == -1) {
-// 				//perror("getline");
-// 				exit(EXIT_FAILURE);
-// 			}
-
-// 			// Remove the newline character at the end of the input
-// 			input[input_length - 1] = '\0';
-
-// 			//To exit shell
-// 			if (strcmp(input, "exit") == 0) {
-// 				break;  // Exit the loop
-// 			}
-
-// 			//ls command
-// 			// if (strcmp(input, "ls") == 0)
-// 			// {
-// 			// 	execute_ls();
-// 			// 	continue; // Go to the next iteration of the loop
-// 			// }
-// 			const char *directory = "."; // Default to current directory
-
-// 			// Check for a directory argument (if any)
-// 			if (argc > 1)
-// 			{
-// 				directory = argv[1];
-// 			}
-
-// 			ls(directory);
-
-// 			//ls.. command
-// 			if (strcmp(input, "ls ..") == 0)
-// 			{
-// 				execute_ls_upper_files();
-// 				continue; // Go to the next iteration of the loop
-// 			}
-// 			// Check if the user typed "echo" to print a message.
-// 			if (strncmp(input, "echo ", 5) == 0) {
-//                 char *message = input + 5;
-//                 execute_echo(message);
-//                 continue;
+//             if (fgets(input, sizeof(input), stdin) == NULL) {
+//                 perror("Failed to read input");
+//                 exit(EXIT_FAILURE);
 //             }
 
-// 			//cd command
-// 			if ((input[0] == 'c' && input[1] == 'd' && input[2] == ' ') || (input[0] == 'c' && input[1] == 'd' && input[2] == '\0')) {
-// 				char *path = input + 3;
-// 				execute_cd(path);
-// 				continue;
-// 			}
+//             // Remove newline character
+//             input[strcspn(input, "\n")] = '\0';
 
-// 			// Here, you can process the user's input as needed
+//             // Parse the input into arguments
+//             int arg_count = 0;
+//             char *token = strtok(input, " ");
+//             while (token != NULL) {
+//                 args[arg_count++] = token;
+//                 token = strtok(NULL, " ");
+//             }
+//             args[arg_count] = NULL;
 
-// 			free(input);
-// 		}
+//             if (arg_count > 0) {
+//                 if (strcmp(args[0], "exit") == 0) {
+// 					//print path
+					
+//                     exit_command(args);
+//                 } else if (strcmp(args[0], "cd") == 0) {
+					
+//                     cd_command(args);
+//                 } else if (strcmp(args[0], "path") == 0) {
+					
+//                     path_command(args);
+//                 } else {
+					
+//                     execute_command(args);
+//                 }
+//             }
+//         }
+//     } else {
+//         fprintf(stderr, "Usage: %s [batch_file]\n", argv[0]);
+//         exit(EXIT_FAILURE);
+//     }
 
-// 		  // Free the memory allocated by getline
-// 	}
-// 	return(0);
+//     return 0;
 // }
 
+
+//CODE WITH REDIRECT working but with spaces
+
+
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <string.h>
+// #include <unistd.h>
+// #include <sys/types.h>
+// #include <sys/wait.h>
+// #include <fcntl.h>
+// #define MAX_INPUT_SIZE 1024
+// #define MAX_PATH_COUNT 50
+// #define MAX_PATH_SIZE 150
+
+// // Use a 2D character array to store the paths
+// char paths[MAX_PATH_COUNT][MAX_PATH_SIZE];
+
+
+// int path_count = 0; // Keep track of the number of paths
+
+// void add_path(const char *new_path) {
+//     if (path_count < MAX_PATH_COUNT) {
+//         strcpy(paths[path_count++], new_path);
+//     } else {
+//         fprintf(stderr, "Max path count reached\n");
+//     }
+// }
+
+// // void handle_embedded_redirection(char **args) {
+// //     for (int i = 0; args[i] != NULL; i++) {
+// //         char *redirection = strchr(args[i], '>');
+// //         if (redirection != NULL) {
+// //             *redirection = '\0';
+// //             char *output_file = redirection + 1;
+            
+// //             // If the next argument exists, we need to shift every subsequent argument down
+// //             if(args[i + 1] != NULL) {
+// //                 for(int j = i + 2; args[j - 1] != NULL; j++) {
+// //                     args[j] = args[j - 1];
+// //                 }
+// //             }
+            
+// //             args[i + 1] = output_file;
+// //             args[i + 2] = args[i + 1]; // Shift down subsequent arguments
+// //             args[i] = args[i];
+// //             break;  // Assuming only one redirection symbol in the command.
+// //         }
+// //     }
+// // }
+
+// void execute_command(char *args[]) {
+//     // Add this line to handle the embedded redirection symbol
+//     int stdout_fd = dup(STDOUT_FILENO);
+//     int stderr_fd = dup(STDERR_FILENO);
+
+//     int redirect_index = -1;
+//     for (int i = 0; args[i] != NULL; i++) {
+//         if (strcmp(args[i], ">") == 0) {
+//             if (args[i + 1] == NULL || args[i + 2] != NULL) {
+//                 char error_message[100] = "An error has occurred\n";
+//                 write(STDERR_FILENO, error_message, strlen(error_message));
+//                 return;
+//             }
+//             redirect_index = i;
+//             break;
+//         }
+//     }
+
+//     if (redirect_index != -1) {
+//         char *output_file = args[redirect_index + 1];
+//         int fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+//         if (fd < 0) {
+//             perror("Failed to open output file");
+//             return;
+//         }
+
+//         dup2(fd, STDOUT_FILENO);
+//         dup2(fd, STDERR_FILENO);
+//         close(fd);
+
+//         args[redirect_index] = NULL;
+//     }
+
+//     for (int i = 0; i < path_count; i++) {
+//         char full_path[MAX_PATH_SIZE];
+//         snprintf(full_path, sizeof(full_path), "%s%s", paths[i], args[0]);
+
+//         if (access(full_path, X_OK) == 0) {
+//             pid_t pid = fork();
+//             if (pid == 0) {
+//                 execv(full_path, args);
+//                 perror("execv failed");
+//                 exit(EXIT_FAILURE);
+//             } else if (pid < 0) {
+//                 perror("fork failed");
+//                 exit(EXIT_FAILURE);
+//             } else {
+//                 wait(NULL);
+                
+//                 // Restore stdout and stderr right after execution
+//                 dup2(stdout_fd, STDOUT_FILENO);
+//                 dup2(stderr_fd, STDERR_FILENO);
+//                 close(stdout_fd);
+//                 close(stderr_fd);
+
+//                 return;  // Exit function after executing command
+//             }
+//         }
+//     }
+
+//     char error_message[30] = "An error has occurred\n";
+//     write(STDERR_FILENO, error_message, strlen(error_message));
+
+//     // In case no redirection happened, restoring stdout and stderr here.
+//     dup2(stdout_fd, STDOUT_FILENO);
+//     dup2(stderr_fd, STDERR_FILENO);
+//     close(stdout_fd);
+//     close(stderr_fd);
+// }
+
+
+// void path_command(char *args[]) {
+//     // Check if there are arguments
+//     // if (args[1] == NULL) {
+//     //     fprintf(stderr, "An error occurred\n");
+//     //     path_count = 0; // Clear all paths
+//     // } else {
+//         // Clear the existing paths
+//         path_count = 0;
+
+//         // Append each argument to the paths array
+//         for (int i = 1; args[i] != NULL; i++) {
+//             add_path(args[i]);
+//         }
+//     //}
+// }
+
+
+// void cd_command(char *args[]) {
+//     if (args[1] == NULL) {
+//         char error_message[30] = "An error has occurred\n";
+//         write(STDERR_FILENO, error_message, strlen(error_message));
+//     } else {
+//         if (chdir(args[1]) != 0) {
+//             char error_message[30] = "An error has occurred\n";
+//             write(STDERR_FILENO, error_message, strlen(error_message));
+//         }
+//     }
+// }
+
+// void exit_command(char *args[]) {
+//     if (args[1] == NULL) {
+//         exit(EXIT_SUCCESS);
+//     } else {
+//         char error_message[30] = "An error has occurred\n";
+//         write(STDERR_FILENO, error_message, strlen(error_message));
+//     }
+// }
+
+// int main(int argc, char *argv[]) {
+// 	// Add /bin/ to the paths array
+//     strcpy(paths[0], "/bin/");
+//     path_count++;
+
+//     // Add the home directory to the paths array
+//     char *home_directory = getcwd(NULL, 0);
+//     if (home_directory != NULL) {
+//         strcat(home_directory, "/");
+//         add_path(home_directory);
+//     } else {
+//         fprintf(stderr, "Failed to get home directory\n");
+//     }
+//     if (argc == 2) {
+//         // Batch mode: Read commands from the specified file
+//         FILE *batch_file = fopen(argv[1], "r");
+//         if (batch_file == NULL) {
+//             perror("Failed to open batch file");
+//             exit(EXIT_FAILURE);
+//         }
+
+//         char input[MAX_INPUT_SIZE];
+//         char *args[MAX_INPUT_SIZE];
+
+//         while (fgets(input, sizeof(input), batch_file) != NULL) {
+//             // Remove newline character
+//             input[strcspn(input, "\n")] = '\0';
+
+//             // Parse the input into arguments
+//             int arg_count = 0;
+//             char *token = strtok(input, " ");
+//             while (token != NULL) {
+//                 args[arg_count++] = token;
+//                 token = strtok(NULL, " ");
+//             }
+//             args[arg_count] = NULL;
+
+//             if (arg_count > 0) {
+//                 if (strcmp(args[0], "exit") == 0) {
+//                     exit_command(args);
+//                 } else if (strcmp(args[0], "cd") == 0) {
+//                     cd_command(args);
+//                 } else if (strcmp(args[0], "path") == 0) {
+//                     path_command(args);
+//                 } else {
+//                     execute_command(args);
+//                 }
+//             }
+//         }
+
+//         fclose(batch_file);
+//     } else if (argc == 1) {
+//         // Interactive mode
+//         char input[MAX_INPUT_SIZE];
+//         char *args[MAX_INPUT_SIZE];
+        
+//         while (1) {
+//             printf("witsshell> ");
+//             fflush(stdout);
+
+//             if (fgets(input, sizeof(input), stdin) == NULL) {
+//                 perror("Failed to read input");
+//                 exit(EXIT_FAILURE);
+//             }
+
+//             // Remove newline character
+//             input[strcspn(input, "\n")] = '\0';
+
+//             // Parse the input into arguments
+//             int arg_count = 0;
+//             char *token = strtok(input, " ");
+//             while (token != NULL) {
+//                 args[arg_count++] = token;
+//                 token = strtok(NULL, " ");
+//             }
+//             args[arg_count] = NULL;
+
+//             if (arg_count > 0) {
+//                 if (strcmp(args[0], "exit") == 0) {
+// 					//print path
+					
+//                     exit_command(args);
+//                 } else if (strcmp(args[0], "cd") == 0) {
+					
+//                     cd_command(args);
+//                 } else if (strcmp(args[0], "path") == 0) {
+					
+//                     path_command(args);
+//                 } else {
+					
+//                     execute_command(args);
+//                 }
+//             }
+//         }
+//     } else {
+//         fprintf(stderr, "Usage: %s [batch_file]\n", argv[0]);
+//         exit(EXIT_FAILURE);
+//     }
+
+//     return 0;
+// }
+
+//CODE WITH REDIRECTION WITHOUT SPACES
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <sys/wait.h>
-#include <dirent.h>
-#include <errno.h>
+#include <fcntl.h>
+#define MAX_INPUT_SIZE 1024
+#define MAX_PATH_COUNT 50
+#define MAX_PATH_SIZE 150
 
-#define MAX_INPUT_LENGTH 1024
+// Use a 2D character array to store the paths
+char paths[MAX_PATH_COUNT][MAX_PATH_SIZE];
 
-bool is_interactive()
-{
-	// Check if stdin is connected to a terminal.
-	return isatty(STDIN_FILENO);
+
+int path_count = 0; // Keep track of the number of paths
+
+void add_path(const char *new_path) {
+    if (path_count < MAX_PATH_COUNT) {
+        strcpy(paths[path_count++], new_path);
+    } else {
+        fprintf(stderr, "Max path count reached\n");
+    }
 }
 
-bool is_bash_mode()
-{
-	// Check if the SHELL environment variable contains "bash."
-	char *shell = getenv("SHELL");
-	if (shell && strstr(shell, "bash") != NULL)
-	{
-		return true;
-	}
-	return false;
+void execute_command(char *args[]) {
+    
+    // Add this line to handle the embedded redirection symbol
+    int stdout_fd = dup(STDOUT_FILENO);
+    int stderr_fd = dup(STDERR_FILENO);
+
+    int redirect_index = -1;
+    for (int i = 0; args[i] != NULL; i++) {
+        if (strcmp(args[i], ">") == 0) {
+            if (args[i + 1] == NULL || args[i + 2] != NULL) {
+                char error_message[100] = "An error has occurred\n";
+                write(STDERR_FILENO, error_message, strlen(error_message));
+                return;
+            }
+            redirect_index = i;
+            break;
+        }
+    }
+
+    if (redirect_index != -1) {
+        if (redirect_index == 0) {
+            char error_message[100] = "An error has occurred\n";
+            write(STDERR_FILENO, error_message, strlen(error_message));
+            return;
+        }
+        char *output_file = args[redirect_index + 1];
+        int fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd < 0) {
+            perror("Failed to open output file");
+            return;
+        }
+
+        dup2(fd, STDOUT_FILENO);
+        dup2(fd, STDERR_FILENO);
+        close(fd);
+
+        args[redirect_index] = NULL;
+    }
+
+    for (int i = 0; i < path_count; i++) {
+        char full_path[MAX_PATH_SIZE];
+        snprintf(full_path, sizeof(full_path), "%s%s", paths[i], args[0]);
+
+        if (access(full_path, X_OK) == 0) {
+            pid_t pid = fork();
+            if (pid == 0) {
+                execv(full_path, args);
+                perror("execv failed");
+                exit(EXIT_FAILURE);
+            } else if (pid < 0) {
+                perror("fork failed");
+                exit(EXIT_FAILURE);
+            } else {
+                wait(NULL);
+                
+                // Restore stdout and stderr right after execution
+                dup2(stdout_fd, STDOUT_FILENO);
+                dup2(stderr_fd, STDERR_FILENO);
+                close(stdout_fd);
+                close(stderr_fd);
+
+                return;  // Exit function after executing command
+            }
+        }
+    }
+
+    char error_message[30] = "An error has occurred\n";
+    write(STDERR_FILENO, error_message, strlen(error_message));
+
+    // In case no redirection happened, restoring stdout and stderr here.
+    dup2(stdout_fd, STDOUT_FILENO);
+    dup2(stderr_fd, STDERR_FILENO);
+    close(stdout_fd);
+    close(stderr_fd);
 }
 
-// excutes ls command
-void execute_ls(const char *directory)
-{
-	// Implement the 'ls' command logic here.
-	struct dirent *entry;
-	DIR *dp;
 
-	// Open the specified directory
-	dp = opendir(directory);
+void path_command(char *args[]) {
+    // Check if there are arguments
+    // if (args[1] == NULL) {
+    //     fprintf(stderr, "An error occurred\n");
+    //     path_count = 0; // Clear all paths
+    // } else {
+        // Clear the existing paths
+        path_count = 0;
 
-	if (dp == NULL)
-	{
-		fprintf(stderr, "ls: cannot access '%s': %s\n", directory, strerror(errno));
-		return;
-	}
-
-	// Read and print directory entries
-	while ((entry = readdir(dp)))
-	{
-		// Skip hidden files and directories
-		if (entry->d_name[0] == '.')
-			continue;
-
-		printf("%s\n", entry->d_name);
-	}
-
-	closedir(dp);
-}
-// excutes ls.. command
-void execute_ls_upper_files()
-{
-	pid_t pid = fork();
-	if (pid == -1)
-	{
-		perror("fork");
-		exit(EXIT_FAILURE);
-	}
-
-	if (pid == 0)
-	{
-		// Child process
-		execlp("ls", "ls ", "..", NULL);
-		perror("ls");
-		exit(EXIT_FAILURE);
-	}
-
-	// Parent process
-	int status;
-	if (wait(&status) == -1)
-	{
-		perror("wait");
-		exit(EXIT_FAILURE);
-	}
+        // Append each argument to the paths array
+        for (int i = 1; args[i] != NULL; i++) {
+            add_path(args[i]);
+        }
+    //}
 }
 
-// excutes echo command
-void execute_echo(char *message)
-{
-	// Implement the 'echo' command logic here.
-	printf("%s\n", message);
+
+void cd_command(char *args[]) {
+    if (args[1] == NULL) {
+        char error_message[30] = "An error has occurred\n";
+        write(STDERR_FILENO, error_message, strlen(error_message));
+    } else {
+        if (chdir(args[1]) != 0) {
+            char error_message[30] = "An error has occurred\n";
+            write(STDERR_FILENO, error_message, strlen(error_message));
+        }
+    }
 }
 
-// excutes cd command
-void execute_cd(char *path) {
-    if (chdir(path) == -1) {
+void exit_command(char *args[]) {
+    if (args[1] == NULL) {
+        exit(EXIT_SUCCESS);
+    } else {
         char error_message[30] = "An error has occurred\n";
         write(STDERR_FILENO, error_message, strlen(error_message));
     }
 }
 
+void tokenize_input(char *input, char **args, int *arg_count) {
+    char *token = strtok(input, " ");
+    while (token != NULL) {
+        if (strcmp(token, ">") == 0) {
+            args[(*arg_count)++] = token;
+        } else {
+            char *redir = strchr(token, '>');
+            if (redir) {
+                *redir = 0;
+                args[(*arg_count)++] = token;
+                args[(*arg_count)++] = ">";
+                token = redir + 1;
+                if (*token != '\0') {  // If there's a filename directly after '>'
+                    args[(*arg_count)++] = token;
+                }
+            } else {
+                args[(*arg_count)++] = token;
+            }
+        }
+        token = strtok(NULL, " ");
+    }
+    args[*arg_count] = NULL;
+}
 
 
+int main(int argc, char *argv[]) {
+	// Add /bin/ to the paths array
+    strcpy(paths[0], "/bin/");
+    path_count++;
 
-int main(int argc, char *argv[])
-{
-	char *input = NULL;
-	size_t input_size = 0;
+    // Add the home directory to the paths array
+    char *home_directory = getcwd(NULL, 0);
+    if (home_directory != NULL) {
+        strcat(home_directory, "/");
+        add_path(home_directory);
+    } else {
+        fprintf(stderr, "Failed to get home directory\n");
+    }
+    if (argc == 2) {
+    FILE *batch_file = fopen(argv[1], "r");
+    if (batch_file == NULL) {
+        perror("Failed to open batch file");
+        exit(EXIT_FAILURE);
+    }
 
-	if (is_interactive() || (argc > 1 && is_bash_mode()))
-	{
-		if (argc > 1)
-		{
-			// Batch mode: Read commands from the specified file.
-			char *input_file_name = argv[1];
-			FILE *input_file = fopen(input_file_name, "r");
-			if (input_file == NULL)
-			{
-				perror("Error opening input file");
-				return 1;
-			}
+    char input[MAX_INPUT_SIZE];
+    char *args[MAX_INPUT_SIZE];
 
-			char *input = NULL;
-			size_t input_length = 0;
-			ssize_t read;
+    while (fgets(input, sizeof(input), batch_file) != NULL) {
+        input[strcspn(input, "\n")] = '\0';
 
-			while ((read = getline(&input, &input_length, input_file)) != -1)
-			{
-				// Remove the trailing newline character.
-				if (input[read - 1] == '\n')
-				{
-					input[read - 1] = '\0';
-				}
-				// To exit the shell
-				if (strcmp(input, "exit") == 0)
-				{
-					break; // Exit the loop
-				}
+        // Use enhanced tokenization for batch mode as well
+        int arg_count = 0;
+        tokenize_input(input, args, &arg_count);
 
-				if (strcmp(input, "ls") == 0)
-				{
-					execute_ls(".");
-				}
-				else if (strncmp(input, "ls ", 3) == 0)
-				{
-					execute_ls(input + 3);
-				}
-				else if (strncmp(input, "echo ", 5) == 0)
-				{
-					execute_echo(input + 5);
-				}
-				else if ((strncmp(input, "cd ", 3) == 0) || (strcmp(input, "cd") == 0))
-				{
-					char *path = (strcmp(input, "cd") == 0) ? getenv("HOME") : input + 3;
-					execute_cd(path);
-				}
+        if (arg_count > 0) {
+            if (strcmp(args[0], "exit") == 0) {
+                exit_command(args);
+            } else if (strcmp(args[0], "cd") == 0) {
+                cd_command(args);
+            } else if (strcmp(args[0], "path") == 0) {
+                path_command(args);
+            } else {
+                execute_command(args);
+            }
+        }
+    }
 
-				else if (strcmp(input, "ls ..") == 0)
-				{
-					execute_ls_upper_files();
-					continue; // Go to the next iteration of the loop
-				}
-			}
+    fclose(batch_file);
+    } else if (argc == 1) {
+        // Interactive mode
+        char input[MAX_INPUT_SIZE];
+        char *args[MAX_INPUT_SIZE];
+        
+        while (1) {
+            printf("witsshell> ");
+            fflush(stdout);
 
-			// Clean up and exit.
-			free(input);
-			fclose(input_file);
-		}
-		else
-		{
-			// Interactive mode
-			while (1)
-			{
-				printf("witsshell> "); // Print a shell prompt
+            if (fgets(input, sizeof(input), stdin) == NULL) {
+                perror("Failed to read input");
+                exit(EXIT_FAILURE);
+            }
 
-				ssize_t input_length = getline(&input, &input_size, stdin);
+            input[strcspn(input, "\n")] = '\0';
 
-				if (input_length == -1)
-				{
-					perror("getline");
-					exit(EXIT_FAILURE);
-				}
+            int arg_count = 0;
+            tokenize_input(input, args, &arg_count);
 
-				// Remove the newline character at the end of the input
-				input[input_length - 1] = '\0';
+            if (arg_count > 0) {
+                if (strcmp(args[0], "exit") == 0) {
+                    exit_command(args);
+                } else if (strcmp(args[0], "cd") == 0) {
+                    cd_command(args);
+                } else if (strcmp(args[0], "path") == 0) {
+                    path_command(args);
+                } else {
+                    execute_command(args);
+                }
+            }
+        }
+    } else {
+        fprintf(stderr, "Usage: %s [batch_file]\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
 
-				// To exit the shell
-				if (strcmp(input, "exit") == 0)
-				{
-					break; // Exit the loop
-				}
-
-				if (strcmp(input, "ls") == 0)
-				{
-					execute_ls(".");
-				}
-				else if (strncmp(input, "ls ", 3) == 0)
-				{
-					execute_ls(input + 3);
-				}
-				else if (strncmp(input, "echo ", 5) == 0)
-				{
-					execute_echo(input + 5);
-				}
-				else if ((strncmp(input, "cd ", 3) == 0) || (strcmp(input, "cd") == 0))
-				{
-					char *path = (strcmp(input, "cd") == 0) ? getenv("HOME") : input + 3;
-					execute_cd(path);
-				}
-
-				else if (strcmp(input, "ls ..") == 0)
-				{
-					execute_ls_upper_files();
-					continue; // Go to the next iteration of the loop
-				}
-			}
-
-			// Free the memory allocated by getline
-			free(input);
-		}
-	}
-
-	return 0;
+    return 0;
 }

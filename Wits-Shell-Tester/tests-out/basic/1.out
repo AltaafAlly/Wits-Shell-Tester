@@ -1,4 +1,6 @@
 makefile
+output
+output.12
 test-witsshell.sh
 tester
 tests
