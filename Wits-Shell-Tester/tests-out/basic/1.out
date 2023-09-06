@@ -1,12 +1,8 @@
-'
-'\n";
 makefile
-output
 output.12
 test-witsshell.sh
 tester
 tests
 tests-out
-utput
 witsshell
 witsshell.c
